@@ -3,20 +3,6 @@
 
 using namespace std;
 
-// Constants declaration
-#define pi (2*acos(0.0))
-const double TD = 2.5;
-const double RD = 0.03;
-const int STS = 30;
-const double BR = 30;
-const double SR = 10;
-const int SLS = 70;
-const double CHT = 100;
-const double PD = 400;
-const double PHL = 160;
-const double MANGLE = 40;
-const double DELTA = 1;
-
 struct point
 {
 	double x,y,z;
@@ -41,6 +27,29 @@ struct point
     point operator*(double d) const { return point(x*d, y*d, z*d); }
 };
 
+// Constants declaration
+const double pi = (2*acos(0.0));
+const int M = 200;
+const double TD = 2.5;
+const double RD = 0.03;
+const int STS = 30;
+const double BR = 30;
+const double SR = 10;
+const int SLS = 70;
+const double CHT = 100;
+const double PD = 400;
+const double PHL = 160;
+const double MANGLE = 40;
+const double DELTA = 1;
+const double BHL = 5;
+const point red(1,0,0);
+const point grey(0.5,0.5,0.5);
+
+ostream& operator<<(ostream& dout, point p)
+{
+	return dout << p.x << " " << p.y << " " << p.z;
+}
+
 void ghurao(const point& base, point& fst, point& scn, double kon)
 {
     point afst(fst);
@@ -58,6 +67,9 @@ int drawaxes;
 double angle;
 point pos, up, daan, look;
 double anglez, anglex1, anglex2, angley;
+point root, diik;
+point cheds[M];
+int curChed;
 
 void drawAxes()
 {
@@ -77,14 +89,15 @@ void drawAxes()
 	}
 }
 
-void drawSquare(double a, double y)
+void drawSquare(double hl, point center, point color)
 {
-    glColor3f(0.5,0.5,0.5);
+    glColor3f(color.x,color.y,color.z);
+
 	glBegin(GL_QUADS);{
-		glVertex3f( a, y,a);
-		glVertex3f( a, y,-a);
-		glVertex3f(-a, y,-a);
-		glVertex3f(-a, y,a);
+		glVertex3f(center.x-hl, center.y,center.z+hl);
+		glVertex3f(center.x+hl, center.y,center.z+hl);
+		glVertex3f(center.x+hl, center.y,center.z-hl);
+		glVertex3f(center.x-hl, center.y,center.z-hl);
 	}glEnd();
 }
 
@@ -206,7 +219,8 @@ void drawHead(double innerRad, double outerRad, int slices, int stacks)
 
 void drawGun()
 {
-	drawSquare(PHL, PD);
+	drawSquare(PHL, point(0,PD,0), grey);
+	for(int i = 0; i < curChed; i++) drawSquare(BHL, cheds[i], red);
 
 	glRotatef(anglez, 0, 0, 1);
 	drawHalfSphere(BR, SLS, STS, -1);
@@ -329,16 +343,24 @@ void mouseListener(int button, int state, int x, int y){	//x, y is the x-y of th
 	switch(button){
 		case GLUT_LEFT_BUTTON:
 			if(state == GLUT_DOWN){		// 2 times?? in ONE click? -- solution is checking DOWN or UP
-				drawaxes=1-drawaxes;
+				double kon1 = anglex1*pi/180;
+				double kon2 = anglez*pi/180;
+				double kon3 = (anglex1+anglex2)*pi/180;
+
+				root = point(-cos(kon1)*sin(kon2), cos(kon1)*cos(kon2), sin(kon1))*BR;
+				diik = point(-cos(kon3)*sin(kon2), cos(kon3)*cos(kon2), sin(kon3))*BR;
+
+				double k = (PD-root.y)/diik.y;
+				point ched = root+diik*k;
+
+				cout << ched << endl;
+
+				ched.y--;
+
+				if(ched.x-BHL >= -PHL && ched.x+BHL <= PHL
+				&& ched.z-BHL >= -PHL && ched.z+BHL <= PHL) cheds[curChed++] = ched;
 			}
-			break;
 
-		case GLUT_RIGHT_BUTTON:
-			//........
-			break;
-
-		case GLUT_MIDDLE_BUTTON:
-			//........
 			break;
 
 		default:
@@ -424,6 +446,12 @@ void init(){
     up = point(0, 0, 1);
     daan = point(-1/sqrt(2), 1/sqrt(2), 0);
     look = point(-1/sqrt(2), -1/sqrt(2), 0);
+
+	//Initializing koyta, root, diik
+	root = point(0, BR, 0);
+	diik = point(0, 1, 0);
+	curChed = 0;
+
 
 	//clear the screen
 	glClearColor(0,0,0,0);

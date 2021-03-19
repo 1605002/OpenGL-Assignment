@@ -3,14 +3,16 @@
 
 using namespace std;
 
+mt19937 rng(chrono::steady_clock::now().time_since_epoch().count());
+
 #define pi (2*acos(0.0))
 const int K = 5;
 const int SQ_LEN = 237;
-const int BIG_RAD = 78;
+const int BIG_RAD = 84;
 const int SMALL_RAD = 10;
 const double CD = 0.05;
-const double EPS = 2;
-
+const double EPS = 0;
+const int Z = 1;
 
 // Global variables
 double cameraHeight;
@@ -22,6 +24,8 @@ double angle;
 int chole;
 bool playing;
 uniform_real_distribution<double> dist(0,1);
+bool ekshathe[K+5][K+5];
+int zombie[K+5];
 
 struct point
 {
@@ -141,7 +145,7 @@ struct Circle
             glEnd();
         }
     }
-} brittos[10];
+} brittos[K+5];
 
 void collideBorgo(Circle& c)
 {
@@ -197,11 +201,6 @@ void drawGrid()
 
 void keyboardListener(unsigned char key, int x,int y){
 	switch(key){
-
-		case '1':
-			drawgrid=1-drawgrid;
-			break;
-
         case 'p':
             playing = !playing;
 
@@ -214,34 +213,11 @@ void keyboardListener(unsigned char key, int x,int y){
 void specialKeyListener(int key, int x,int y){
 	switch(key){
 		case GLUT_KEY_DOWN:		//down arrow key
-			cameraHeight -= 3.0;
             TD = max(0.2, TD-CD);
 			break;
 		case GLUT_KEY_UP:		// up arrow key
-			cameraHeight += 3.0;
             TD = min(4.0, TD+CD);
 			break;
-
-		case GLUT_KEY_RIGHT:
-			cameraAngle += 0.03;
-			break;
-		case GLUT_KEY_LEFT:
-			cameraAngle -= 0.03;
-			break;
-
-		case GLUT_KEY_PAGE_UP:
-			break;
-		case GLUT_KEY_PAGE_DOWN:
-			break;
-
-		case GLUT_KEY_INSERT:
-			break;
-
-		case GLUT_KEY_HOME:
-			break;
-		case GLUT_KEY_END:
-			break;
-
 		default:
 			break;
 	}
@@ -321,15 +297,6 @@ void display(){
         if(brittos[i].born) brittos[i].draw(point(0.5, 1, 1));
     }
 
-    //drawCircle(30,24);
-
-    //drawCone(20,50,24);
-
-	//drawSphere(30,24,20);
-
-
-
-
 	//ADD this line in the end --- if you use double buffer (i.e. GL_DOUBLE)
 	glutSwapBuffers();
 }
@@ -338,7 +305,6 @@ void display(){
 void animate(){
     if(!playing) return;
 
-    angle+=0.05;
     chole++;
 
     for(int i = 1; i <= K; i++)
@@ -351,30 +317,66 @@ void animate(){
 		if(brittos[i].born) brittos[i].center += brittos[i].velocity*TD;
 	}
 
-    for(int i = 1; i <= K; i++)
-    {
-        if(brittos[i].born)
-        {   
-            if(brittos[0].hasInside(brittos[i])) brittos[i].vitore = true;
-
-            if(brittos[i].vitore)
-            {
-                if(!brittos[0].hasInside(brittos[i])) brittos[i].redirect(brittos[0]);
+	for(int i = 1; i <= K; i++)
+	{
+		if(brittos[i].born)
+		{
+			if(brittos[0].hasInside(brittos[i]) && !brittos[i].vitore)
+			{
+				brittos[i].vitore = true;
 
 				for(int j = 1; j <= K; j++)
 				{
 					if(i == j) continue;
-					if(brittos[j].born && brittos[j].vitore && brittos[i].dhakka(brittos[j]))
+					if(brittos[j].vitore && brittos[i].dhakka(brittos[j]))
+						ekshathe[i][j] = ekshathe[j][i] = true;
+				}
+			}
+		}
+	}
+
+	for(int i = 1; i <= K; i++)
+	{
+		for(int j = i+1; j <= K; j++)
+		{
+			if(ekshathe[i][j] && !brittos[i].dhakka(brittos[j])) ekshathe[i][j] = ekshathe[j][i] = false;
+		}
+	}
+
+	for(int i = 1; i <= K; i++)
+	{
+		if(!brittos[i].born) continue;
+
+		if(brittos[i].vitore)
+		{
+			if(zombie[i] == 0)
+			{
+				if(!brittos[0].hasInside(brittos[i]))
+				{
+					brittos[i].redirect(brittos[0]);
+					zombie[i] = Z;
+
+					continue;
+				}
+				for(int j = i+1; j <= K; j++)
+				{
+					if(!brittos[j].vitore) continue;
+					if(ekshathe[i][j]) continue;
+					if(brittos[i].dhakka(brittos[j]) && zombie[j] == 0)
 					{
 						brittos[i].redirect(brittos[j]);
+						brittos[j].redirect(brittos[i]);
+						zombie[i] = zombie[j] = Z;
+						zombie[j]++;
+
+						break;
 					}
 				}
-            }
-            else collideBorgo(brittos[i]);
-
-
-        }
-    }
+			}
+			else zombie[i]--;
+		}
+		else collideBorgo(brittos[i]);
+	}
 
 	//codes for any changes in Models, Camera
 	glutPostRedisplay();
@@ -401,7 +403,7 @@ void init(){
         brittos[i].born = false;
         brittos[i].vitore = false;
 
-        double x = 0.5; // Will be changed
+        double x = dist(rng); // Will be changed
         double y = sqrt(1-x*x);
         brittos[i].velocity = point(x, y, 0);
     }

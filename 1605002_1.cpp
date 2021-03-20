@@ -1,5 +1,7 @@
-#include<bits/stdc++.h>
 #include <GL/glut.h>
+// If you are using Windows, replace GL/glut.h with glut.h
+
+#include<bits/stdc++.h>
 
 using namespace std;
 
@@ -30,26 +32,28 @@ struct point
 // Constants declaration
 const double pi = (2*acos(0.0));
 const int M = 200;
-const double TD = 2.5;
-const double RD = 0.03;
-const int STS = 30;
-const double BR = 30;
-const double SR = 10;
-const int SLS = 70;
-const double CHT = 100;
-const double PD = 400;
-const double PHL = 160;
-const double MANGLE = 40;
-const double DELTA = 1;
-const double BHL = 5;
-const point red(1,0,0);
-const point grey(0.5,0.5,0.5);
+const double TD = 2.5; // Camera translation in one key press
+const double RD = 0.03; // Camera rotation angle in one key press
+const int STS = 30; // Number of stacks
+const double BR = 30; // Big sphere radius
+const double SR = 10; // Small sphere radius
+const int SLS = 70; // Number of slices
+const double CHT = 100; // Cylinder height
+const double PD = 400; // Distance of curtain from origin
+const double PHL = 160; // curtain half length
+const double MANGLE = 40; // Maximum angle of gun rotation
+const double DELTA = 1; // Gun rotation angle in one key press
+const double BHL = 5; // Bullet half length
+const point RED(1,0,0);
+const point GREY(0.5,0.5,0.5);
 
 ostream& operator<<(ostream& dout, point p)
 {
 	return dout << p.x << " " << p.y << " " << p.z;
 }
 
+// Rotate fst and scn vectors around base vector by "kon" angles counter-clockwise
+// All three vectors are unit vectors and mutually perpendicular 
 void ghurao(const point& base, point& fst, point& scn, double kon)
 {
     point afst(fst);
@@ -60,33 +64,49 @@ void ghurao(const point& base, point& fst, point& scn, double kon)
 }
 
 // Global Variables declaration
-double cameraHeight;
-double cameraAngle;
-int drawgrid;
-int drawaxes;
-double angle;
-point pos, up, daan, look;
-double anglez, anglex1, anglex2, angley;
-point root, diik;
-point cheds[M];
-int curChed;
+point pos, up, daan, look; // Camera vectors
+double anglez, anglex1, anglex2, angley; // Gun rotation vectors: anglex1 is the whole rotation and anglex2 is the gun tube rotation
+point root, diik; // root: intersection point of big and small spheres, diik: unit vector along gun tube
+point cheds[M]; // Bullets in board
+int curChed; // Number of bullets
+point points[M][M]; // Points to draw
+
+void drawRing(int stacks, int slices)
+{
+	//draw quads using generated points
+	for(int i=0;i<stacks;i++)
+	{
+		int red = 0, green = 0, blue = 0;
+
+		for(int j=0;j<slices;j++)
+		{
+			glColor3f(red, green, blue);
+			glBegin(GL_QUADS);{
+				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
+				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
+				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
+				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
+			}glEnd();
+
+			red = 255-red, green = 255-green, blue = 255-blue;
+		}
+	}
+}
 
 void drawAxes()
 {
-	if(drawaxes==1)
-	{
-		glColor3f(1.0, 1.0, 1.0);
-		glBegin(GL_LINES);{
-			glVertex3f( 300,0,0);
-			glVertex3f(-300,0,0);
 
-			glVertex3f(0,-800,0);
-			glVertex3f(0, 800,0);
+	glColor3f(1.0, 1.0, 1.0);
+	glBegin(GL_LINES);{
+		glVertex3f( 300,0,0);
+		glVertex3f(-300,0,0);
 
-			glVertex3f(0,0, 300);
-			glVertex3f(0,0,-300);
-		}glEnd();
-	}
+		glVertex3f(0,-800,0);
+		glVertex3f(0, 800,0);
+
+		glVertex3f(0,0, 300);
+		glVertex3f(0,0,-300);
+	}glEnd();
 }
 
 void drawSquare(double hl, point center, point color)
@@ -102,9 +122,9 @@ void drawSquare(double hl, point center, point color)
 }
 
 
+// Draw a semi-sphere along the y-axis.
 void drawHalfSphere(double radius,int slices,int stacks, int shamne)
 {
-	struct point points[100][100];
 	int i,j;
 	double h,r;
 	//generate points
@@ -119,29 +139,13 @@ void drawHalfSphere(double radius,int slices,int stacks, int shamne)
 			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
 		}
 	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		int red = 0, green = 0, blue = 0;
-
-		for(j=0;j<slices;j++)
-		{
-			glColor3f(red, green, blue);
-			glBegin(GL_QUADS);{
-				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-			}glEnd();
-
-			red = 255-red, green = 255-green, blue = 255-blue;
-		}
-	}
+	
+	drawRing(stacks, slices);
 }
 
+// Draw a cylinder along y axis
 void drawCylinder(double radius, double height, int slices, int stacks)
 {
-	struct point points[100][100];
 	int i,j;
 	double h,r;
 	//generate points
@@ -156,30 +160,13 @@ void drawCylinder(double radius, double height, int slices, int stacks)
 			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
 		}
 	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		int red = 0, green = 0, blue = 0;
-
-        
-		for(j=0;j<slices;j++)
-		{
-			glColor3f(red, green, blue);
-			glBegin(GL_QUADS);{
-				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-			}glEnd();
-
-			red = 255-red, green = 255-green, blue = 255-blue;
-		}
-	}
+	
+	drawRing(stacks, slices);
 }
 
+// Rotating a quarter circle
 void drawHead(double innerRad, double outerRad, int slices, int stacks)
 {
-	struct point points[100][100];
 	int i,j;
 	double h,r,angle;
 	//generate points
@@ -187,8 +174,8 @@ void drawHead(double innerRad, double outerRad, int slices, int stacks)
 	{
 		angle = (double)i/stacks*pi/2;
 		h=outerRad*sin(angle);
-		r=innerRad+outerRad-outerRad*cos(angle)
-		;
+		r=innerRad+outerRad-outerRad*cos(angle);
+
 		for(j=0;j<=slices;j++)
 		{
 			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
@@ -196,31 +183,14 @@ void drawHead(double innerRad, double outerRad, int slices, int stacks)
 			points[i][j].z=r*sin(((double)j/(double)slices)*2*pi);
 		}
 	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		int red = 0, green = 0, blue = 0;
-
-        
-		for(j=0;j<slices;j++)
-		{
-			glColor3f(red, green, blue);
-			glBegin(GL_QUADS);{
-				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-			}glEnd();
-
-			red = 255-red, green = 255-green, blue = 255-blue;
-		}
-	}
+	
+	drawRing(stacks, slices);
 }
 
 void drawGun()
 {
-	drawSquare(PHL, point(0,PD,0), grey);
-	for(int i = 0; i < curChed; i++) drawSquare(BHL, cheds[i], red);
+	drawSquare(PHL, point(0,PD,0), GREY);
+	for(int i = 0; i < curChed; i++) drawSquare(BHL, cheds[i], RED);
 
 	glRotatef(anglez, 0, 0, 1);
 	drawHalfSphere(BR, SLS, STS, -1);
@@ -308,22 +278,16 @@ void specialKeyListener(int key, int x,int y){
 	switch(key){
 		case GLUT_KEY_DOWN:		//down arrow key
             pos -= look*TD;
-			cameraHeight -= 3.0;
 			break;
 		case GLUT_KEY_UP:		// up arrow key
             pos += look*TD;
-			cameraHeight += 3.0;
-			// glTranslatef(110,0,0);
-			// drawSquare(10);
 			break;
 
 		case GLUT_KEY_RIGHT:
             pos += daan*TD;
-			cameraAngle += 0.03;
 			break;
 		case GLUT_KEY_LEFT:
             pos -= daan*TD;
-			cameraAngle -= 0.03;
 			break;
 
 		case GLUT_KEY_PAGE_UP:
@@ -343,10 +307,11 @@ void mouseListener(int button, int state, int x, int y){	//x, y is the x-y of th
 	switch(button){
 		case GLUT_LEFT_BUTTON:
 			if(state == GLUT_DOWN){		// 2 times?? in ONE click? -- solution is checking DOWN or UP
-				double kon1 = anglex1*pi/180;
-				double kon2 = anglez*pi/180;
-				double kon3 = (anglex1+anglex2)*pi/180;
+				double kon1 = anglex1*pi/180; // Big sphere rotation around x axis
+				double kon2 = anglez*pi/180; // Rotation around z axis
+				double kon3 = (anglex1+anglex2)*pi/180; // Full rotation around x axis
 
+				// Converting to cartesian from Polar
 				root = point(-cos(kon1)*sin(kon2), cos(kon1)*cos(kon2), sin(kon1))*BR;
 				diik = point(-cos(kon3)*sin(kon2), cos(kon3)*cos(kon2), sin(kon3))*BR;
 
@@ -357,6 +322,7 @@ void mouseListener(int button, int state, int x, int y){	//x, y is the x-y of th
 
 				ched.y--;
 
+				// Check if bullet falls on curtain
 				if(ched.x-BHL >= -PHL && ched.x+BHL <= PHL
 				&& ched.z-BHL >= -PHL && ched.z+BHL <= PHL) cheds[curChed++] = ched;
 			}
@@ -428,18 +394,12 @@ void display(){
 
 
 void animate(){
-	angle+=0.05;
 	//codes for any changes in Models, Camera
 	glutPostRedisplay();
 }
 
 void init(){
 	//codes for initialization
-	drawgrid=0;
-	drawaxes=1;
-	cameraHeight=150.0;
-	cameraAngle=1.0;
-	angle=0;
 
     //Initializing pos, up, daan and look
     pos = point(100, 100, 0);
@@ -479,7 +439,7 @@ int main(int argc, char **argv){
 	glutInitWindowPosition(0, 0);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);	//Depth, Double buffer, RGB color
 
-	glutCreateWindow("My OpenGL Program");
+	glutCreateWindow("Gun");
 
 	init();
 
